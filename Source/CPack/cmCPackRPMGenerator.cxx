@@ -151,11 +151,11 @@ int cmCPackRPMGenerator::PackageComponents(bool ignoreGroup)
  int cmCPackRPMGenerator::PackageComponentDebuginfo()
 {
 	int retval = 1;
-	if(IsOn("CPACK_RPM_DEBUGINFO_INSTALL"))
+	if(IsOn("CPACK_RPM_PACKAGE_DEBUGINFO"))
 	{
 		cmCPackLogger(cmCPackLog::LOG_OUTPUT, "Create Debuginfo package" << std::endl);
-		this->SetOption("CPACK_DEBUGINFO", "ON");
-		std::string packageName = "debuginfo";
+		this->SetOption("CPACK_DEBUGINFO", "I_ON");
+		const std::string packageName = "debuginfo";
 
 		std::string packageFileName(
 				cmSystemTools::GetParentDirectory(toplevel)
@@ -173,9 +173,7 @@ int cmCPackRPMGenerator::PackageComponents(bool ignoreGroup)
 		/* replace proposed CPACK_OUTPUT_FILE_NAME */
 		this->SetOption("CPACK_OUTPUT_FILE_NAME",outputFileName.c_str());
 
-		// Tell CPackRPM.cmake the name of the component NAME.
-		if(!IsOn("CPACK_RPM_COMPONENT_INSTALL"))
-			this->SetOption("CPACK_RPM_COMPONENT_INSTALL", "ON");
+		this->SetOption("CPACK_RPM_COMPONENT_INSTALL", "I_ON");
 
 		this->SetOption("CPACK_RPM_PACKAGE_COMPONENT",packageName.c_str());
 
