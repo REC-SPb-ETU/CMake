@@ -668,6 +668,7 @@ function(cpack_rpm_prepare_content_list)
   cmake_policy(POP)
   set(CPACK_RPM_INSTALL_FILES "/${CPACK_RPM_INSTALL_FILES}")
   string(REPLACE ";" ";/" CPACK_RPM_INSTALL_FILES "${CPACK_RPM_INSTALL_FILES}")
+  string(REPLACE "${CPACK_PACKAGING_INSTALL_PREFIX}" "%{buildroot}" CPACK_RPM_INSTALL_FILES "${CPACK_RPM_INSTALL_FILES}")
 
   # if we are creating a relocatable package, omit parent directories of
   # CPACK_RPM_PACKAGE_PREFIX. This is achieved by building a "filter list"
@@ -1610,6 +1611,34 @@ function(cpack_rpm_generate_package)
   if(${CPACK_DEBUGINFO})
     set(TMP_RPM_DEBUGINFO "%debug_package")
   endif()
+  
+  # This is a generate src.rpm
+  if(CPACK_SRC_DIR OR CPACK_RPM_ARCHIVE_PATH)
+      if(NOT CPACK_RPM_ARCHIVE_PATH)
+          set(ARCHIVE_NAME "${CPACK_RPM_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}")
+          set(ARCHIVE_PATH "${CPACK_RPM_DIRECTORY}/SOURCES/${ARCHIVE_NAME}.tgz")         
+          execute_process(
+              COMMAND "tar" -C "${CPACK_SRC_DIR}" -czf "${ARCHIVE_PATH}" .
+          )
+          set(TMP_RPM_SOURCE "Source: ${ARCHIVE_NAME}.tgz")
+      else()
+          #file(COPY "${CPACK_RPM_ARCHIVE_PATH}" DESTINATION "${CPACK_RPM_DIRECTORY}/SOURCES/")
+          #file(RENAME "${CPACK_RPM_DIRECTORY}/SOURCES/${_dir}" "${CPACK_RPM_DIRECTORY}/SOURCES/${CPACK_RPM_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}.tar")
+          file(RENAME "${CPACK_RPM_ARCHIVE_PATH}" "${CPACK_RPM_DIRECTORY}/SOURCES/${CPACK_RPM_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}.tar")
+          set(TMP_RPM_SOURCE "Source: ${CPACK_RPM_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}.tar")
+      endif()
+      set(INSTALL_PATH $RPM_BUILD_ROOT/usr/)
+      set(TMP_RPM_BUILD_REQUIRES "BuildRequires: ${CPACK_RPM_BUILDREQUIRES}")
+      if(NOT CPACK_BUILD_PROJECT)
+          set(TMP_RPM_BUILD "%build \n cmake . -DCMAKE_INSTALL_PREFIX=${INSTALL_PATH} \n make %{?_smp_mflags}")
+          set(TMP_RPM_INSTALL "make DESTDIR=$RPM_BUILD_ROOT install")
+      else()     
+          set(TMP_RPM_BUILD "%build \n cd ${CPACK_BUILD_PROJECT}\n cmake . -DCMAKE_BUILD_TYPE=RELEASE -DCMAKE_INSTALL_PREFIX=${INSTALL_PREFIX}\n make -j4")
+          set(TMP_RPM_INSTALL "cd ${CPACK_BUILD_PROJECT} && make DESTDIR=$RPM_BUILD_ROOT install")
+      endif()
+      set(TMP_RPM_PREP "%setup -qc")
+  endif()
+  set(TMP_NAME_RPM "${CPACK_RPM_PACKAGE_NAME}-${CPACK_RPM_PACKAGE_VERSION}-${CPACK_RPM_PACKAGE_RELEASE}.${_CPACK_RPM_PACKAGE_ARCHITECTURE}.rpm")
 
   # We should generate a USER spec file template:
   #  - either because the user asked for it : CPACK_RPM_GENERATE_USER_BINARY_SPECFILE_TEMPLATE
@@ -1617,14 +1646,16 @@ function(cpack_rpm_generate_package)
   if(CPACK_RPM_GENERATE_USER_BINARY_SPECFILE_TEMPLATE OR NOT CPACK_RPM_USER_BINARY_SPECFILE)
      file(WRITE ${CPACK_RPM_BINARY_SPECFILE}.in
       "# -*- rpm-spec -*-
-BuildRoot:      \@CPACK_RPM_DIRECTORY\@/\@CPACK_PACKAGE_FILE_NAME\@\@CPACK_RPM_PACKAGE_COMPONENT_PART_PATH\@
 Summary:        \@CPACK_RPM_PACKAGE_SUMMARY\@
-Name:           \@CPACK_RPM_PACKAGE_NAME\@
+Name:           \@CPACK_RPM_PACKAGE_NAME\@\@CPACK_RPM_PACKAGE_COMPONENT_PART_NAME\@
 Version:        \@CPACK_RPM_PACKAGE_VERSION\@
 Release:        \@CPACK_RPM_PACKAGE_RELEASE\@
 License:        \@CPACK_RPM_PACKAGE_LICENSE\@
 Group:          \@CPACK_RPM_PACKAGE_GROUP\@
 Vendor:         \@CPACK_RPM_PACKAGE_VENDOR\@
+\@TMP_RPM_SOURCE\@
+\@TMP_RPM_BUILD_REQUIRES\@
+
 \@TMP_RPM_URL\@
 \@TMP_RPM_REQUIRES\@
 \@TMP_RPM_REQUIRES_PRE\@
@@ -1638,17 +1669,15 @@ Vendor:         \@CPACK_RPM_PACKAGE_VENDOR\@
 \@TMP_RPM_AUTOREQ\@
 \@TMP_RPM_AUTOREQPROV\@
 \@TMP_RPM_BUILDARCH\@
-\@TMP_RPM_PREFIXES\@
+# \@TMP_RPM_PREFIXES\@
 
-%define _rpmdir \@CPACK_RPM_DIRECTORY\@
-%define _rpmfilename \@CPACK_RPM_FILE_NAME\@
 %define _unpackaged_files_terminate_build 0
-%define _topdir \@CPACK_RPM_DIRECTORY\@
 \@TMP_RPM_SPEC_INSTALL_POST\@
 \@CPACK_RPM_SPEC_MORE_DEFINE\@
 \@CPACK_RPM_COMPRESSION_TYPE_TMP\@
 
 %description
+
 \@CPACK_RPM_PACKAGE_DESCRIPTION\@
 
 \@TMP_RPM_DEBUGINFO\@
@@ -1657,17 +1686,30 @@ Vendor:         \@CPACK_RPM_PACKAGE_VENDOR\@
 # we skip _install step because CPack does that for us.
 # We do only save CPack installed tree in _prepr
 # and then restore it in build.
+
 %prep
-mv $RPM_BUILD_ROOT \"\@CPACK_TOPLEVEL_DIRECTORY\@/tmpBBroot\"
+if [ -e $RPM_BUILD_ROOT ];
+then
+  mv $RPM_BUILD_ROOT \"%{_topdir}/tmpBBroot\"
+fi
+
+\@TMP_RPM_PREP\@
+
+\@TMP_RPM_SETUP\@
 
 #p build
 
+\@TMP_RPM_BUILD\@
+
 %install
-if [ -e $RPM_BUILD_ROOT ];
+rm -rf $RPM_BUILD_ROOT
+
+if [ -e \"%{_topdir}/tmpBBroot\" ];
 then
-  rm -rf $RPM_BUILD_ROOT
+  mv \"%{_topdir}/tmpBBroot\" $RPM_BUILD_ROOT
 fi
-mv \"\@CPACK_TOPLEVEL_DIRECTORY\@/tmpBBroot\" $RPM_BUILD_ROOT
+
+\@TMP_RPM_INSTALL\@
 
 %clean
 
@@ -1720,20 +1762,34 @@ mv \"\@CPACK_TOPLEVEL_DIRECTORY\@/tmpBBroot\" $RPM_BUILD_ROOT
     execute_process(
       COMMAND "${RPMBUILD_EXECUTABLE}" -bb
               --define "_topdir ${CPACK_RPM_DIRECTORY}"
+              --define "_rpmdir ${CPACK_RPM_DIRECTORY}"
               --buildroot "${CPACK_RPM_DIRECTORY}/${CPACK_PACKAGE_FILE_NAME}${CPACK_RPM_PACKAGE_COMPONENT_PART_PATH}"
-              --target "${CPACK_RPM_PACKAGE_ARCHITECTURE}"
+              --target "${_CPACK_RPM_PACKAGE_ARCHITECTURE}"
               "${CPACK_RPM_BINARY_SPECFILE}"
       WORKING_DIRECTORY "${CPACK_TOPLEVEL_DIRECTORY}/${CPACK_PACKAGE_FILE_NAME}${CPACK_RPM_PACKAGE_COMPONENT_PART_PATH}"
       RESULT_VARIABLE CPACK_RPMBUILD_EXEC_RESULT
-      ERROR_FILE "${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_NAME}.err"
-      OUTPUT_FILE "${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_NAME}.out")
+      ERROR_FILE "${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.err"
+      OUTPUT_FILE "${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.out") 
+
+    file(RENAME "${CPACK_TOPLEVEL_DIRECTORY}/${_CPACK_RPM_PACKAGE_ARCHITECTURE}/${TMP_NAME_RPM}" "${CPACK_TOPLEVEL_DIRECTORY}/${CPACK_RPM_FILE_NAME}")
+
+    execute_process(
+      COMMAND "${RPMBUILD_EXECUTABLE}" -bs
+              --define "_topdir ${CPACK_RPM_DIRECTORY}"
+              --define "_rpmdir ${CPACK_RPM_DIRECTORY}"
+              "${CPACK_RPM_BINARY_SPECFILE}"
+      WORKING_DIRECTORY "${CPACK_TOPLEVEL_DIRECTORY}/${CPACK_PACKAGE_FILE_NAME}${CPACK_RPM_PACKAGE_COMPONENT_PART_PATH}"
+      RESULT_VARIABLE CPACK_RPMBUILD_EXEC_RESULT
+      ERROR_FILE "${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.err"
+      OUTPUT_FILE "${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.out") 
+
     if(CPACK_RPM_PACKAGE_DEBUG OR CPACK_RPMBUILD_EXEC_RESULT)
-      file(READ ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_NAME}.err RPMBUILDERR)
-      file(READ ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_NAME}.out RPMBUILDOUT)
+      file(READ ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.err RPMBUILDERR)
+      file(READ ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.out RPMBUILDOUT)
       message("CPackRPM:Debug: You may consult rpmbuild logs in: ")
-      message("CPackRPM:Debug:    - ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_NAME}.err")
+      message("CPackRPM:Debug:    - ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.err")
       message("CPackRPM:Debug: *** ${RPMBUILDERR} ***")
-      message("CPackRPM:Debug:    - ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_NAME}.out")
+      message("CPackRPM:Debug:    - ${CPACK_TOPLEVEL_DIRECTORY}/rpmbuild${CPACK_RPM_PACKAGE_COMPONENT_PART_NAME}.out")
       message("CPackRPM:Debug: *** ${RPMBUILDOUT} ***")
     endif()
   else()
