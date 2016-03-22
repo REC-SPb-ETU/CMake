@@ -214,6 +214,10 @@
 #  CPACK_SOURCE_ZIP) allowing users to select which packages will be
 #  generated.
 #
+# .. variable:: CPACK_SOURCE_DIRECTORY
+#
+#  Original CMAKE_SOURCE_DIR.
+#
 # .. variable:: CPACK_SOURCE_OUTPUT_CONFIG_FILE
 #
 #  The name of the CPack source configuration file. This file is the CPack
@@ -628,6 +632,7 @@ configure_file("${cpack_input_file}" "${CPACK_OUTPUT_CONFIG_FILE}" @ONLY)
 # Generate source file
 _cpack_set_default(CPACK_SOURCE_INSTALLED_DIRECTORIES
   "${CMAKE_SOURCE_DIR};/")
+_cpack_set_default(CPACK_SOURCE_DIRECTORY "${CMAKE_SOURCE_DIR}")
 _cpack_set_default(CPACK_SOURCE_TOPLEVEL_TAG "${CPACK_SYSTEM_NAME}-Source")
 _cpack_set_default(CPACK_SOURCE_PACKAGE_FILE_NAME
   "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-Source")

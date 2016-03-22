@@ -215,6 +215,8 @@ if(EXISTS "${CMAKE_ROOT}/Modules/CPack.cmake")
     "${CMake_BINARY_DIR}/CMakeCPackOptions.cmake" @ONLY)
   set(CPACK_PROJECT_CONFIG_FILE "${CMake_BINARY_DIR}/CMakeCPackOptions.cmake")
 
+  set(CPACK_RPM_PACKAGE_DEBUGINFO ON)
+
   # include CPack model once all variables are set
   include(CPack)
 endif()
