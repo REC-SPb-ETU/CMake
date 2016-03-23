@@ -356,6 +356,7 @@ function(_cpack_escape_for_cmake var value)
 endfunction()
 
 # Set the package name
+_cpack_set_default(CPACK_SOURCE_DIRECTORY "${CMAKE_SOURCE_DIR}")
 _cpack_set_default(CPACK_PACKAGE_NAME "${CMAKE_PROJECT_NAME}")
 _cpack_set_default(CPACK_PACKAGE_VERSION_MAJOR "0")
 _cpack_set_default(CPACK_PACKAGE_VERSION_MINOR "1")
@@ -632,7 +633,6 @@ configure_file("${cpack_input_file}" "${CPACK_OUTPUT_CONFIG_FILE}" @ONLY)
 # Generate source file
 _cpack_set_default(CPACK_SOURCE_INSTALLED_DIRECTORIES
   "${CMAKE_SOURCE_DIR};/")
-_cpack_set_default(CPACK_SOURCE_DIRECTORY "${CMAKE_SOURCE_DIR}")
 _cpack_set_default(CPACK_SOURCE_TOPLEVEL_TAG "${CPACK_SYSTEM_NAME}-Source")
 _cpack_set_default(CPACK_SOURCE_PACKAGE_FILE_NAME
   "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-Source")
