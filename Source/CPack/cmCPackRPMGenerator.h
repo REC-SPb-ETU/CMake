@@ -68,8 +68,6 @@ protected:
    */
   int PackageComponentsAllInOne();
 
-  int PackageComponentDebuginfo();
-
   virtual const char* GetOutputExtension() { return ".rpm"; }
   virtual bool SupportsComponentInstallation() const;
   virtual std::string GetComponentInstallDirNameSuffix(

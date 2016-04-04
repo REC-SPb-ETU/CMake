@@ -131,7 +131,6 @@ int cmCPackRPMGenerator::PackageComponents(bool ignoreGroup)
         retval &= PackageOnePack(initialTopLevel,compIt->first);
         }
       }
-    retval &= PackageComponentDebuginfo();
     }
   // CPACK_COMPONENTS_IGNORE_GROUPS is set
   // We build 1 package per component
@@ -147,48 +146,6 @@ int cmCPackRPMGenerator::PackageComponents(bool ignoreGroup)
   return retval;
 }
 
-//----------------------------------------------------------------------
- int cmCPackRPMGenerator::PackageComponentDebuginfo()
-{
-	int retval = 1;
-	if(IsOn("CPACK_RPM_PACKAGE_DEBUGINFO"))
-	{
-		cmCPackLogger(cmCPackLog::LOG_OUTPUT, "Create Debuginfo package" << std::endl);
-		this->SetOption("CPACK_DEBUGINFO", "I_ON");
-		const std::string packageName = "debuginfo";
-
-		std::string packageFileName(
-				cmSystemTools::GetParentDirectory(toplevel)
-		);
-
-		std::string outputFileName(
-				GetComponentPackageFileName(this->GetOption("CPACK_PACKAGE_FILE_NAME"),
-						packageName,
-						true)
-						+ this->GetOutputExtension()
-		);
-
-		packageFileName += "/"+ outputFileName;
-
-		/* replace proposed CPACK_OUTPUT_FILE_NAME */
-		this->SetOption("CPACK_OUTPUT_FILE_NAME",outputFileName.c_str());
-
-		this->SetOption("CPACK_RPM_COMPONENT_INSTALL", "I_ON");
-
-		this->SetOption("CPACK_RPM_PACKAGE_COMPONENT",packageName.c_str());
-
-		if (!this->ReadListFile("CPackRPM.cmake"))
-		{
-			cmCPackLogger(cmCPackLog::LOG_ERROR,
-					"Error while execution CPackRPM.cmake" << std::endl);
-			retval = 0;
-		}
-
-		// add the generated package to package file names list
-		packageFileNames.push_back(packageFileName);
-	}
-	return retval;
-}
 //----------------------------------------------------------------------
 int cmCPackRPMGenerator::PackageComponentsAllInOne()
 {
@@ -279,7 +236,6 @@ int cmCPackRPMGenerator::PackageFiles()
                     "Error while execution CPackRPM.cmake" << std::endl);
       retval = 0;
       }
-    retval &= PackageComponentDebuginfo();
     }
 
   if (!this->IsSet("RPMBUILD_EXECUTABLE"))
