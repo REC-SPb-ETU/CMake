@@ -1,27 +1,16 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2011 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmGlobalVisualStudio11Generator_h
 #define cmGlobalVisualStudio11Generator_h
 
 #include "cmGlobalVisualStudio10Generator.h"
 
-
 /** \class cmGlobalVisualStudio11Generator  */
-class cmGlobalVisualStudio11Generator:
-  public cmGlobalVisualStudio10Generator
+class cmGlobalVisualStudio11Generator : public cmGlobalVisualStudio10Generator
 {
 public:
   cmGlobalVisualStudio11Generator(cmake* cm, const std::string& name,
-    const std::string& platformName);
+                                  const std::string& platformName);
   static cmGlobalGeneratorFactory* NewFactory();
 
   virtual bool MatchesGeneratorName(const std::string& name) const;
@@ -49,6 +38,7 @@ protected:
 
   /** Return true if the configuration needs to be deployed */
   virtual bool NeedsDeploy(cmState::TargetType type) const;
+
 private:
   class Factory;
   friend class Factory;

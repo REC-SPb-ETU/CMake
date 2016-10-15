@@ -1,15 +1,7 @@
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2012 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
+cmake_minimum_required(VERSION 2.8.12.2 FATAL_ERROR)
 if(POLICY CMP0025)
   cmake_policy(SET CMP0025 NEW)
 endif()
@@ -17,6 +9,10 @@ if(POLICY CMP0053)
   cmake_policy(SET CMP0053 NEW)
 endif()
 project(CMake)
+
+# Make sure we can find internal find_package modules only used for
+# building CMake and not for shipping externally
+list(INSERT CMAKE_MODULE_PATH 0 ${CMake_SOURCE_DIR}/Source/Modules)
 
 if(CMAKE_BOOTSTRAP)
   # Running from bootstrap script.  Set local variable and remove from cache.
@@ -26,6 +22,16 @@ endif()
 
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
   set(CMake_BIN_DIR ${CMake_BINARY_DIR}/bin)
+endif()
+
+if(CMake_GUI_DISTRIBUTE_WITH_Qt_LGPL)
+  if(CMake_GUI_DISTRIBUTE_WITH_Qt_LGPL MATCHES "^3|2\\.1$")
+    set(USE_LGPL "${CMake_GUI_DISTRIBUTE_WITH_Qt_LGPL}")
+  else()
+    set(USE_LGPL "2.1")
+  endif()
+else()
+  set(USE_LGPL "")
 endif()
 
 if("${CMake_SOURCE_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
@@ -57,7 +63,7 @@ if(NOT DEFINED CMAKE_CXX_STANDARD AND NOT CMake_NO_CXX_STANDARD)
   endif()
 endif()
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
-  include(${CMake_SOURCE_DIR}/Source/Checks/cm_cxx11_unordered_map.cmake)
+  include(${CMake_SOURCE_DIR}/Source/Checks/cm_cxx_features.cmake)
 endif()
 
 # option to set the internal encoding of CMake to UTF-8
@@ -83,6 +89,11 @@ option(CMake_INSTALL_DEPENDENCIES
   "Whether to install 3rd-party runtime dependencies" OFF)
 mark_as_advanced(CMake_INSTALL_DEPENDENCIES)
 
+# option to build reference for CMake developers
+option(CMake_BUILD_DEVELOPER_REFERENCE
+  "Build CMake Developer Reference" OFF)
+mark_as_advanced(CMake_BUILD_DEVELOPER_REFERENCE)
+
 #-----------------------------------------------------------------------
 # a macro to deal with system libraries, implemented as a macro
 # simply to improve readability of the main script
@@ -97,7 +108,7 @@ macro(CMAKE_HANDLE_SYSTEM_LIBRARIES)
 
   # Allow the user to enable/disable all system utility library options by
   # defining CMAKE_USE_SYSTEM_LIBRARIES or CMAKE_USE_SYSTEM_LIBRARY_${util}.
-  set(UTILITIES BZIP2 CURL EXPAT FORM JSONCPP LIBARCHIVE LIBLZMA ZLIB)
+  set(UTILITIES BZIP2 CURL EXPAT FORM JSONCPP LIBARCHIVE LIBLZMA LIBUV ZLIB)
   foreach(util ${UTILITIES})
     if(NOT DEFINED CMAKE_USE_SYSTEM_LIBRARY_${util}
         AND DEFINED CMAKE_USE_SYSTEM_LIBRARIES)
@@ -137,6 +148,7 @@ macro(CMAKE_HANDLE_SYSTEM_LIBRARIES)
     "${CMAKE_USE_SYSTEM_LIBRARY_LIBLZMA}" "NOT CMAKE_USE_SYSTEM_LIBARCHIVE" ON)
   option(CMAKE_USE_SYSTEM_FORM "Use system-installed libform" "${CMAKE_USE_SYSTEM_LIBRARY_FORM}")
   option(CMAKE_USE_SYSTEM_JSONCPP "Use system-installed jsoncpp" "${CMAKE_USE_SYSTEM_LIBRARY_JSONCPP}")
+  option(CMAKE_USE_SYSTEM_LIBUV "Use system-installed libuv" "${CMAKE_USE_SYSTEM_LIBRARY_LIBUV}")
 
   # For now use system KWIML only if explicitly requested rather
   # than activating via the general system libs options.
@@ -327,7 +339,15 @@ macro (CMAKE_BUILD_UTILITIES)
     if(CMAKE_TESTS_CDASH_SERVER)
       set(CMAKE_CURL_TEST_URL "${CMAKE_TESTS_CDASH_SERVER}/user.php")
     endif()
-    option(CMAKE_USE_OPENSSL "Use OpenSSL." OFF)
+    set(_CMAKE_USE_OPENSSL_DEFAULT OFF)
+    if(NOT DEFINED CMAKE_USE_OPENSSL AND NOT WIN32 AND NOT APPLE
+        AND CMAKE_SYSTEM_NAME MATCHES "(Linux|FreeBSD)")
+      find_package(OpenSSL QUIET)
+      if(OPENSSL_FOUND)
+        set(_CMAKE_USE_OPENSSL_DEFAULT ON)
+      endif()
+    endif()
+    option(CMAKE_USE_OPENSSL "Use OpenSSL." ${_CMAKE_USE_OPENSSL_DEFAULT})
     mark_as_advanced(CMAKE_USE_OPENSSL)
     if(CMAKE_USE_OPENSSL)
       set(CURL_CA_BUNDLE "" CACHE FILEPATH "Path to SSL CA Certificate Bundle")
@@ -346,66 +366,9 @@ macro (CMAKE_BUILD_UTILITIES)
   set(CMAKE_COMPRESS_LIBRARIES "cmcompress")
   add_subdirectory(Utilities/cmcompress)
   CMAKE_SET_TARGET_FOLDER(cmcompress "Utilities/3rdParty")
-  if(CMAKE_USE_SYSTEM_BZIP2)
-    find_package(BZip2)
-  else()
-    set(BZIP2_INCLUDE_DIR
-      "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmbzip2")
-    set(BZIP2_LIBRARIES cmbzip2)
-    add_subdirectory(Utilities/cmbzip2)
-    CMAKE_SET_TARGET_FOLDER(cmbzip2 "Utilities/3rdParty")
-  endif()
 
   #---------------------------------------------------------------------
-  # Build or use system liblzma for libarchive.
-  if(CMAKE_USE_SYSTEM_LIBLZMA)
-    find_package(LibLZMA)
-    if(NOT LIBLZMA_FOUND)
-      message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBLZMA is ON but LibLZMA is not found!")
-    endif()
-    set(LZMA_INCLUDE_DIR ${LIBLZMA_INCLUDE_DIRS})
-    set(LZMA_LIBRARY ${LIBLZMA_LIBRARIES})
-  else()
-    add_subdirectory(Utilities/cmliblzma)
-    CMAKE_SET_TARGET_FOLDER(cmliblzma "Utilities/3rdParty")
-    set(LZMA_INCLUDE_DIR
-      "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmliblzma/liblzma/api")
-    set(LZMA_LIBRARY cmliblzma)
-  endif()
-
-  #---------------------------------------------------------------------
-  # Build or use system libarchive for CMake and CTest.
-  if(CMAKE_USE_SYSTEM_LIBARCHIVE)
-    find_package(LibArchive 3.0.0)
-    if(NOT LibArchive_FOUND)
-      message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBARCHIVE is ON but LibArchive is not found!")
-    endif()
-    set(CMAKE_TAR_INCLUDES ${LibArchive_INCLUDE_DIRS})
-    set(CMAKE_TAR_LIBRARIES ${LibArchive_LIBRARIES})
-  else()
-    set(ZLIB_INCLUDE_DIR ${CMAKE_ZLIB_INCLUDES})
-    set(ZLIB_LIBRARY ${CMAKE_ZLIB_LIBRARIES})
-    add_definitions(-DLIBARCHIVE_STATIC)
-    set(ENABLE_NETTLE OFF CACHE INTERNAL "Enable use of Nettle")
-    set(ENABLE_OPENSSL ${CMAKE_USE_OPENSSL} CACHE INTERNAL "Enable use of OpenSSL")
-    set(ENABLE_LZMA ON CACHE INTERNAL "Enable the use of the system found LZMA library if found")
-    set(ENABLE_ZLIB ON CACHE INTERNAL "Enable the use of the system found ZLIB library if found")
-    set(ENABLE_BZip2 ON CACHE INTERNAL "Enable the use of the system found BZip2 library if found")
-    set(ENABLE_LIBXML2 OFF CACHE INTERNAL "Enable the use of the system found libxml2 library if found")
-    set(ENABLE_EXPAT OFF CACHE INTERNAL "Enable the use of the system found EXPAT library if found")
-    set(ENABLE_PCREPOSIX OFF CACHE INTERNAL "Enable the use of the system found PCREPOSIX library if found")
-    set(ENABLE_LibGCC OFF CACHE INTERNAL "Enable the use of the system found LibGCC library if found")
-    set(ENABLE_XATTR OFF CACHE INTERNAL "Enable extended attribute support")
-    set(ENABLE_ACL OFF CACHE INTERNAL "Enable ACL support")
-    set(ENABLE_ICONV OFF CACHE INTERNAL "Enable iconv support")
-    set(ENABLE_CNG OFF CACHE INTERNAL "Enable the use of CNG(Crypto Next Generation)")
-    add_subdirectory(Utilities/cmlibarchive)
-    CMAKE_SET_TARGET_FOLDER(cmlibarchive "Utilities/3rdParty")
-    set(CMAKE_TAR_LIBRARIES cmlibarchive ${BZIP2_LIBRARIES})
-  endif()
-
-  #---------------------------------------------------------------------
-  # Build expat library for CMake and CTest.
+  # Build expat library for CMake, CTest, and libarchive.
   if(CMAKE_USE_SYSTEM_EXPAT)
     find_package(EXPAT)
     if(NOT EXPAT_FOUND)
@@ -422,10 +385,76 @@ macro (CMAKE_BUILD_UTILITIES)
   endif()
 
   #---------------------------------------------------------------------
+  # Build or use system libbz2 for libarchive.
+  if(NOT CMAKE_USE_SYSTEM_LIBARCHIVE)
+    if(CMAKE_USE_SYSTEM_BZIP2)
+      find_package(BZip2)
+    else()
+      set(BZIP2_INCLUDE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmbzip2")
+      set(BZIP2_LIBRARIES cmbzip2)
+      add_subdirectory(Utilities/cmbzip2)
+      CMAKE_SET_TARGET_FOLDER(cmbzip2 "Utilities/3rdParty")
+    endif()
+  endif()
+
+  #---------------------------------------------------------------------
+  # Build or use system liblzma for libarchive.
+  if(NOT CMAKE_USE_SYSTEM_LIBARCHIVE)
+    if(CMAKE_USE_SYSTEM_LIBLZMA)
+      find_package(LibLZMA)
+      if(NOT LIBLZMA_FOUND)
+        message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBLZMA is ON but LibLZMA is not found!")
+      endif()
+      set(LZMA_INCLUDE_DIR ${LIBLZMA_INCLUDE_DIRS})
+      set(LZMA_LIBRARY ${LIBLZMA_LIBRARIES})
+    else()
+      add_subdirectory(Utilities/cmliblzma)
+      CMAKE_SET_TARGET_FOLDER(cmliblzma "Utilities/3rdParty")
+      set(LZMA_INCLUDE_DIR
+        "${CMAKE_CURRENT_SOURCE_DIR}/Utilities/cmliblzma/liblzma/api")
+      set(LZMA_LIBRARY cmliblzma)
+    endif()
+  endif()
+
+  #---------------------------------------------------------------------
+  # Build or use system libarchive for CMake and CTest.
+  if(CMAKE_USE_SYSTEM_LIBARCHIVE)
+    find_package(LibArchive 3.0.0)
+    if(NOT LibArchive_FOUND)
+      message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBARCHIVE is ON but LibArchive is not found!")
+    endif()
+    set(CMAKE_TAR_INCLUDES ${LibArchive_INCLUDE_DIRS})
+    set(CMAKE_TAR_LIBRARIES ${LibArchive_LIBRARIES})
+  else()
+    set(EXPAT_INCLUDE_DIR ${CMAKE_EXPAT_INCLUDES})
+    set(EXPAT_LIBRARY ${CMAKE_EXPAT_LIBRARIES})
+    set(ZLIB_INCLUDE_DIR ${CMAKE_ZLIB_INCLUDES})
+    set(ZLIB_LIBRARY ${CMAKE_ZLIB_LIBRARIES})
+    add_definitions(-DLIBARCHIVE_STATIC)
+    set(ENABLE_NETTLE OFF CACHE INTERNAL "Enable use of Nettle")
+    set(ENABLE_OPENSSL ${CMAKE_USE_OPENSSL} CACHE INTERNAL "Enable use of OpenSSL")
+    set(ENABLE_LZMA ON CACHE INTERNAL "Enable the use of the system found LZMA library if found")
+    set(ENABLE_ZLIB ON CACHE INTERNAL "Enable the use of the system found ZLIB library if found")
+    set(ENABLE_BZip2 ON CACHE INTERNAL "Enable the use of the system found BZip2 library if found")
+    set(ENABLE_LIBXML2 OFF CACHE INTERNAL "Enable the use of the system found libxml2 library if found")
+    set(ENABLE_EXPAT ON CACHE INTERNAL "Enable the use of the system found EXPAT library if found")
+    set(ENABLE_PCREPOSIX OFF CACHE INTERNAL "Enable the use of the system found PCREPOSIX library if found")
+    set(ENABLE_LibGCC OFF CACHE INTERNAL "Enable the use of the system found LibGCC library if found")
+    set(ENABLE_XATTR OFF CACHE INTERNAL "Enable extended attribute support")
+    set(ENABLE_ACL OFF CACHE INTERNAL "Enable ACL support")
+    set(ENABLE_ICONV OFF CACHE INTERNAL "Enable iconv support")
+    set(ENABLE_CNG OFF CACHE INTERNAL "Enable the use of CNG(Crypto Next Generation)")
+    add_subdirectory(Utilities/cmlibarchive)
+    CMAKE_SET_TARGET_FOLDER(cmlibarchive "Utilities/3rdParty")
+    set(CMAKE_TAR_LIBRARIES cmlibarchive ${BZIP2_LIBRARIES})
+  endif()
+
+  #---------------------------------------------------------------------
   # Build jsoncpp library.
   if(CMAKE_USE_SYSTEM_JSONCPP)
     if(NOT CMAKE_VERSION VERSION_LESS 3.0)
-      include(${CMake_SOURCE_DIR}/Source/Modules/FindJsonCpp.cmake)
+      find_package(JsonCpp)
     else()
       message(FATAL_ERROR "CMAKE_USE_SYSTEM_JSONCPP requires CMake >= 3.0")
     endif()
@@ -438,6 +467,55 @@ macro (CMAKE_BUILD_UTILITIES)
     set(CMAKE_JSONCPP_LIBRARIES cmjsoncpp)
     add_subdirectory(Utilities/cmjsoncpp)
     CMAKE_SET_TARGET_FOLDER(cmjsoncpp "Utilities/3rdParty")
+  endif()
+
+  #---------------------------------------------------------------------
+  # Build libuv library.
+  if(NOT DEFINED CMAKE_USE_LIBUV)
+    set(CMAKE_USE_LIBUV 1)
+    if(APPLE)
+      include(CheckCSourceCompiles)
+      check_c_source_compiles("
+#include <CoreServices/CoreServices.h>
+#include <AvailabilityMacros.h>
+#ifndef MAC_OS_X_VERSION_10_5
+#error \"MAC_OS_X_VERSION_10_5 is not defined\"
+#endif
+int main(void) { return 0; }
+" HAVE_CoreServices_OS_X_10_5)
+      if(NOT HAVE_CoreServices_OS_X_10_5)
+        set(CMAKE_USE_LIBUV 0)
+      endif()
+    elseif(CYGWIN)
+      # libuv does not support Cygwin
+      set(CMAKE_USE_LIBUV 0)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "HP-UX")
+      # Disable until it can be ported.
+      set(CMAKE_USE_LIBUV 0)
+    elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+      # Disable until it can be ported.
+      set(CMAKE_USE_LIBUV 0)
+    endif()
+  endif()
+  if(CMAKE_USE_LIBUV)
+    if(CMAKE_USE_SYSTEM_LIBUV)
+      if(NOT CMAKE_VERSION VERSION_LESS 3.0)
+        find_package(LibUV 1.0.0)
+      else()
+        message(FATAL_ERROR "CMAKE_USE_SYSTEM_LIBUV requires CMake >= 3.0")
+      endif()
+      if(NOT LIBUV_FOUND)
+        message(FATAL_ERROR
+          "CMAKE_USE_SYSTEM_LIBUV is ON but a libuv is not found!")
+      endif()
+      set(CMAKE_LIBUV_LIBRARIES LibUV::LibUV)
+    else()
+      set(CMAKE_LIBUV_LIBRARIES cmlibuv)
+      add_subdirectory(Utilities/cmlibuv)
+      CMAKE_SET_TARGET_FOLDER(cmlibuv "Utilities/3rdParty")
+    endif()
+  else()
+    set(CMAKE_LIBUV_LIBRARIES)
   endif()
 
   #---------------------------------------------------------------------
@@ -628,6 +706,31 @@ endif()
 
 # setup some Testing support (a macro defined in this file)
 CMAKE_SETUP_TESTING()
+
+# Check whether to build server mode or not:
+if(NOT CMake_TEST_EXTERNAL_CMAKE)
+  if(NOT DEFINED CMake_ENABLE_SERVER_MODE)
+    list(FIND CMAKE_CXX_COMPILE_FEATURES cxx_auto_type CMake_HAVE_CXX_AUTO_TYPE)
+    list(FIND CMAKE_CXX_COMPILE_FEATURES cxx_range_for CMake_HAVE_CXX_RANGE_FOR)
+    if(CMAKE_USE_LIBUV
+        AND CMake_HAVE_CXX_AUTO_TYPE
+        AND CMake_HAVE_CXX_MAKE_UNIQUE
+        AND CMake_HAVE_CXX_RANGE_FOR
+        )
+      set(CMake_ENABLE_SERVER_MODE 1)
+    else()
+      set(CMake_ENABLE_SERVER_MODE 0)
+    endif()
+  endif()
+  if(CMake_ENABLE_SERVER_MODE AND NOT CMAKE_USE_LIBUV)
+    message(FATAL_ERROR "The server mode requires libuv!")
+  endif()
+else()
+  set(CMake_ENABLE_SERVER_MODE 0)
+endif()
+if(NOT DEFINED CMake_TEST_SERVER_MODE)
+  set(CMake_TEST_SERVER_MODE ${CMake_ENABLE_SERVER_MODE})
+endif()
 
 if(NOT CMake_TEST_EXTERNAL_CMAKE)
   if(NOT CMake_VERSION_IS_RELEASE)

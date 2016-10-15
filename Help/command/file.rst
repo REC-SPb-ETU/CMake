@@ -103,8 +103,9 @@ Generate a list of files that match the ``<globbing-expressions>`` and
 store it into the ``<variable>``.  Globbing expressions are similar to
 regular expressions, but much simpler.  If ``RELATIVE`` flag is
 specified, the results will be returned as relative paths to the given
-path.  No specific order of results is defined.  If order is important then
-sort the list explicitly (e.g. using the :command:`list(SORT)` command).
+path.  No specific order of results is defined other than that it is
+deterministic.  If order is important then sort the list explicitly
+(e.g. using the :command:`list(SORT)` command).
 
 By default ``GLOB`` lists directories - directories are omited in result if
 ``LIST_DIRECTORIES`` is set to false.
@@ -220,6 +221,12 @@ Options to both ``DOWNLOAD`` and ``UPLOAD`` are:
 
 ``TIMEOUT <seconds>``
   Terminate the operation after a given total time has elapsed.
+
+``USERPWD <username>:<password>``
+  Set username and password for operation.
+
+``HTTPHEADER <HTTP-header>``
+  HTTP header for operation. Suboption can be repeated several times.
 
 Additional options to ``DOWNLOAD`` are:
 

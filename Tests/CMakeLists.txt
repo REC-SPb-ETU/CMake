@@ -83,6 +83,17 @@ if(BUILD_TESTING)
     set(MAKE_SUPPORTS_SPACES 0)
   endif()
 
+  # assume no resources building to test
+  set(CMake_TEST_RESOURCES FALSE)
+  # for windows and cygwin assume we have resources
+  if(WIN32 OR CYGWIN)
+    set(CMake_TEST_RESOURCES TRUE)
+  endif()
+  # for borland and watcom there is no resource support
+  if(WATCOM OR BORLAND)
+    set(CMake_TEST_RESOURCES FALSE)
+  endif()
+
   set(build_generator_args
     --build-generator ${CMAKE_GENERATOR}
     )
@@ -262,18 +273,11 @@ if(BUILD_TESTING)
   ADD_TEST_MACRO(CompileFeatures CompileFeatures)
   ADD_TEST_MACRO(CMakeCommands.target_compile_features target_compile_features)
 
-  # assume no resources building to test
-  set(TEST_RESOURCES FALSE)
-  # for windows and cygwin assume we have resources
-  if(WIN32 OR CYGWIN)
-    set(TEST_RESOURCES TRUE)
-  endif()
-  # for borland and watcom there is no resource support
-  if(WATCOM OR BORLAND)
-    set(TEST_RESOURCES FALSE)
-  endif()
-  if(TEST_RESOURCES)
+  if(CMake_TEST_RESOURCES)
     ADD_TEST_MACRO(VSResource VSResource)
+    if (CMAKE_GENERATOR MATCHES "Ninja")
+      add_test_macro(VSResourceNinjaForceRSP VSResourceNinjaForceRSP)
+    endif ()
   endif()
   ADD_TEST_MACRO(MSManifest MSManifest)
   ADD_TEST_MACRO(Simple Simple)
@@ -482,7 +486,6 @@ if(BUILD_TESTING)
     )
   list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Module/ExternalData")
 
-  ADD_TEST_MACRO(Module.GenerateExportHeader GenerateExportHeader)
   ADD_TEST_MACRO(Module.FindDependency FindDependency)
 
   ADD_TEST_MACRO(Module.WriteCompilerDetectionHeader WriteCompilerDetectionHeader)
@@ -566,66 +569,49 @@ if(BUILD_TESTING)
   ADD_LINK_FLAGS_TEST(mod_flags_config dll_flags_config)
   ADD_LINK_FLAGS_TEST(exe_flags_config mod_flags_config)
 
-  # If we are running right now with a UnixMakefiles based generator,
+  # If we are running right now with a Unix Makefiles or Ninja based generator,
   # build the "Simple" test with the ExtraGenerators, if available
   # This doesn't test whether the generated project files work (unfortunately),
   # mainly it tests that cmake doesn't crash when generating these project files.
-  if(${CMAKE_GENERATOR} MATCHES "Unix Makefiles"  OR  ${CMAKE_GENERATOR} MATCHES "KDevelop")
+  if(${CMAKE_GENERATOR} MATCHES "Unix Makefiles" OR ${CMAKE_GENERATOR} MATCHES "Ninja")
+
     # check which generators we have
     execute_process(COMMAND ${CMAKE_CMAKE_COMMAND} --help
       OUTPUT_VARIABLE cmakeOutput ERROR_VARIABLE cmakeOutput)
-    # check for the Eclipse generator
-    if ("${cmakeOutput}" MATCHES Eclipse)
-      add_test(Simple_EclipseGenerator ${CMAKE_CTEST_COMMAND}
-         --build-and-test
-         "${CMake_SOURCE_DIR}/Tests/Simple"
-         "${CMake_BINARY_DIR}/Tests/Simple_EclipseGenerator"
-         --build-two-config
-         --build-generator "Eclipse CDT4 - Unix Makefiles"
-         --build-generator-platform "${CMAKE_GENERATOR_PLATFORM}"
-         --build-generator-toolset "${CMAKE_GENERATOR_TOOLSET}"
-         --build-project Simple
-         --build-options ${build_options}
-         --test-command Simple)
-      list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Simple_EclipseGenerator")
-    endif ()
 
-    # check for the CodeBlocks generator
-    if ("${cmakeOutput}" MATCHES CodeBlocks)
-      add_test(Simple_CodeBlocksGenerator ${CMAKE_CTEST_COMMAND}
-         --build-and-test
-         "${CMake_SOURCE_DIR}/Tests/Simple"
-         "${CMake_BINARY_DIR}/Tests/Simple_CodeBlocksGenerator"
-         --build-two-config
-         --build-generator "CodeBlocks - Unix Makefiles"
-         --build-generator-platform "${CMAKE_GENERATOR_PLATFORM}"
-         --build-generator-toolset "${CMAKE_GENERATOR_TOOLSET}"
-         --build-project Simple
-         --build-options ${build_options}
-         --test-command Simple)
-      list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Simple_CodeBlocksGenerator")
-    endif ()
-    # check for the KDevelop3 generator
-    if ("${cmakeOutput}" MATCHES KDevelop3)
-      add_test(Simple_KDevelop3Generator ${CMAKE_CTEST_COMMAND}
-         --build-and-test
-         "${CMake_SOURCE_DIR}/Tests/Simple"
-         "${CMake_BINARY_DIR}/Tests/Simple_KDevelop3Generator"
-         --build-two-config
-         --build-generator "KDevelop3 - Unix Makefiles"
-         --build-generator-platform "${CMAKE_GENERATOR_PLATFORM}"
-         --build-generator-toolset "${CMAKE_GENERATOR_TOOLSET}"
-         --build-project Simple
-         --build-options ${build_options}
-         --test-command Simple)
-      list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Simple_KDevelop3Generator")
-    endif ()
+    set(extraGenerators
+      "CodeBlocks"
+      "CodeLite"
+      "Eclipse CDT4"
+      "Kate"
+      "KDevelop3"
+      "Sublime Text 2")
+
+    foreach(extraGenerator ${extraGenerators})
+      if ("${cmakeOutput}" MATCHES "${extraGenerator} - ${CMAKE_GENERATOR}")
+        set(extraGeneratorTestName "Simple_${extraGenerator}Generator")
+        string(REPLACE " " "" extraGeneratorTestName ${extraGeneratorTestName})
+
+        add_test(${extraGeneratorTestName} ${CMAKE_CTEST_COMMAND}
+          --build-and-test
+          "${CMake_SOURCE_DIR}/Tests/Simple"
+          "${CMake_BINARY_DIR}/Tests/${extraGeneratorTestName}"
+          --build-two-config
+          --build-generator "${extraGenerator} - ${CMAKE_GENERATOR}"
+          --build-generator-platform "${CMAKE_GENERATOR_PLATFORM}"
+          --build-generator-toolset "${CMAKE_GENERATOR_TOOLSET}"
+          --build-project Simple
+          --build-options ${build_options}
+          --test-command Simple)
+        list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/${extraGeneratorTestName}")
+      endif ()
+    endforeach(extraGenerator)
 
   endif()
 
   # test for correct sub-project generation
-  # not implemented in VS 6, VS 7.0, Xcode, or Ninja
-  if(NOT CMAKE_GENERATOR MATCHES "Visual Studio [67]$|Xcode|Ninja")
+  # not implemented in VS 7.0, Xcode, or Ninja
+  if(NOT CMAKE_GENERATOR MATCHES "Visual Studio 7$|Xcode|Ninja")
     # run cmake and configure all of SubProject
     # but only build the independent executable car
     add_test(SubProject ${CMAKE_CTEST_COMMAND}
@@ -684,14 +670,15 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     endif()
   endmacro()
   if(CMAKE_BUILD_NIGHTLY_RELEASES)
-    ADD_NIGHTLY_BUILD_TEST(CMakeNightlyWindows
-      dash3win7_release.cmake)
+    ADD_NIGHTLY_BUILD_TEST(CMakeNightlyWin32
+      win32_release.cmake)
+    ADD_NIGHTLY_BUILD_TEST(CMakeNightlyWin64
+      win64_release.cmake)
     ADD_NIGHTLY_BUILD_TEST(CMakeNightlyOSX
-      dashmacmini5_release.cmake)
-    ADD_NIGHTLY_BUILD_TEST(CMakeNightlyLinux32
-      magrathea_release.cmake)
+      osx_release.cmake)
     ADD_NIGHTLY_BUILD_TEST(CMakeNightlyLinux64
       linux64_release.cmake)
+    set_property(TEST CMakeNightlyWin64 PROPERTY DEPENDS CMakeNightlyWin32)
   endif()
 
   # add tests with more complex invocations
@@ -948,6 +935,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     set(CPackComponents_BUILD_OPTIONS)
     if(APPLE)
       set(CPackComponents_BUILD_OPTIONS -DCPACK_BINARY_DRAGNDROP:BOOL=ON)
+      if(CMake_TEST_XCODE_VERSION VERSION_GREATER "4.6")
+        set(CPackComponents_BUILD_OPTIONS ${CPackComponents_BUILD_OPTIONS}
+          -DCPACK_BINARY_PRODUCTBUILD:BOOL=ON)
+      endif()
     endif()
     if(NSIS_MAKENSIS_EXECUTABLE)
       set(CPackComponents_BUILD_OPTIONS ${CPackComponents_BUILD_OPTIONS}
@@ -992,6 +983,9 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     list(APPEND ACTIVE_CPACK_GENERATORS "ZIP")
     if(APPLE)
       list(APPEND ACTIVE_CPACK_GENERATORS "DragNDrop")
+      if(CMake_TEST_XCODE_VERSION VERSION_GREATER "4.6")
+        list(APPEND ACTIVE_CPACK_GENERATORS "productbuild")
+      endif()
     endif()
 
     # set up list of component packaging ways
@@ -1102,6 +1096,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     set(CPackComponents_BUILD_OPTIONS)
     if(APPLE)
       set(CPackComponents_BUILD_OPTIONS -DCPACK_BINARY_DRAGNDROP:BOOL=ON)
+      if(CMake_TEST_XCODE_VERSION VERSION_GREATER "4.6")
+        set(CPackComponents_BUILD_OPTIONS ${CPackComponents_BUILD_OPTIONS}
+          -DCPACK_BINARY_PRODUCTBUILD:BOOL=ON)
+      endif()
     endif()
     if(NOT NSIS_MAKENSIS_EXECUTABLE)
       set(CPackComponents_BUILD_OPTIONS ${CPackComponents_BUILD_OPTIONS}
@@ -1359,6 +1357,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     add_subdirectory(FindBoost)
   endif()
 
+  if(CMake_TEST_FindBZip2)
+    add_subdirectory(FindBZip2)
+  endif()
+
   if(CMake_TEST_FindGSL)
     add_subdirectory(FindGSL)
   endif()
@@ -1367,8 +1369,24 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     add_subdirectory(FindGTest)
   endif()
 
+  if(CMake_TEST_FindICU)
+    add_subdirectory(FindICU)
+  endif()
+
   if(CMake_TEST_FindJsonCpp)
     add_subdirectory(FindJsonCpp)
+  endif()
+
+  if(CMake_TEST_FindLibUV)
+    add_subdirectory(FindLibUV)
+  endif()
+
+  if(CMake_TEST_FindLTTngUST)
+    add_subdirectory(FindLTTngUST)
+  endif()
+
+  if(CMake_TEST_FindOpenCL)
+    add_subdirectory(FindOpenCL)
   endif()
 
   if(CMake_TEST_FindOpenSSL)
@@ -1383,6 +1401,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     add_subdirectory(FindTIFF)
   endif()
 
+  if(CMake_TEST_FindVulkan)
+    add_subdirectory(FindVulkan)
+  endif()
+
   if(CMake_TEST_FindXalanC)
     add_subdirectory(FindXalanC)
   endif()
@@ -1395,8 +1417,9 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
   # Matlab module
   if(CMake_TEST_FindMatlab)
-    ADD_TEST_MACRO(FindMatlab.basic_checks      ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION>)
-    ADD_TEST_MACRO(FindMatlab.versions_checks   ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION>)
+    ADD_TEST_MACRO(FindMatlab.basic_checks      ${CMAKE_CTEST_COMMAND} -V -C $<CONFIGURATION>)
+    ADD_TEST_MACRO(FindMatlab.versions_checks   ${CMAKE_CTEST_COMMAND} -V -C $<CONFIGURATION>)
+    ADD_TEST_MACRO(FindMatlab.components_checks ${CMAKE_CTEST_COMMAND} -V -C $<CONFIGURATION>)
   endif()
 
   find_package(GTK2 QUIET)
@@ -1430,6 +1453,18 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     --build-options ${build_options}
     )
   list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/ExternalProjectSubdir")
+
+  add_test(NAME ExternalProjectSourceSubdir
+    COMMAND ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION>
+    --build-and-test
+    "${CMake_SOURCE_DIR}/Tests/ExternalProjectSourceSubdir"
+    "${CMake_BINARY_DIR}/Tests/ExternalProjectSourceSubdir"
+    ${build_generator_args}
+    --build-project ExternalProjectSourceSubdir
+    --force-new-ctest-process
+    --build-options ${build_options}
+    )
+  list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/ExternalProjectSourceSubdir")
 
   add_test(ExternalProjectLocal ${CMAKE_CTEST_COMMAND}
     --build-and-test
@@ -1644,7 +1679,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
   if(CMake_TEST_XCODE_VERSION AND NOT CMake_TEST_XCODE_VERSION VERSION_LESS 5
      AND OSX_VERSION MATCHES "^([0-9]+\\.[0-9]+)")
-    set(XCTest_BUILD_OPTIONS -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_MATCH_1})
+    set(XCTest_BUILD_OPTIONS -DCMAKE_OSX_DEPLOYMENT_TARGET=${CMAKE_MATCH_1} -DCMAKE_OSX_SYSROOT=macosx)
     ADD_TEST_MACRO(XCTest ${CMAKE_CTEST_COMMAND} -C $<CONFIGURATION> -V)
   endif()
 
@@ -1740,7 +1775,9 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   if(MSVC)
     ADD_TEST_MACRO(ForceInclude foo)
     ADD_TEST_MACRO(PDBDirectoryAndName myexe)
-    ADD_TEST_MACRO(PrecompiledHeader foo)
+    if(NOT CMAKE_C_COMPILER_ID STREQUAL "Clang")
+      ADD_TEST_MACRO(PrecompiledHeader foo)
+    endif()
   endif()
   if(MSVC OR
       "${CMAKE_GENERATOR}" MATCHES "(MSYS|MinGW) Makefiles")
@@ -1869,7 +1906,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   endif()
 
   if(MSVC AND NOT MSVC_VERSION LESS 1310
-     AND NOT CMAKE_GENERATOR MATCHES "Visual Studio [67]( |$)"
+     AND NOT CMAKE_GENERATOR MATCHES "Visual Studio 7( |$)"
      AND (NOT CMAKE_GENERATOR MATCHES "Visual Studio [89]( |$)"
           OR CMAKE_SIZEOF_VOID_P EQUAL 4)
       )
@@ -1881,7 +1918,7 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       ADD_TEST_MACRO(SBCS SBCS)
     endif()
 
-    if(NOT "${CMAKE_GENERATOR}" MATCHES "Visual Studio [6789]( |$)"
+    if(NOT "${CMAKE_GENERATOR}" MATCHES "Visual Studio [789]( |$)"
         AND NOT CMAKE_GENERATOR_TOOLSET)
       ADD_TEST_MACRO(VSWindowsFormsResx VSWindowsFormsResx)
     endif()
@@ -1910,7 +1947,6 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
 
     if(CMake_TEST_DEVENV)
       # The test (and tested property) works with .sln files, so it's skipped when:
-      # * Using VS6, which doesn't use .sln files
       # * cmake --build is set up to use MSBuild, since the MSBuild invocation does not use the .sln file
       set(_last_test "")
       foreach(config ${CMAKE_CONFIGURATION_TYPES})
@@ -2095,6 +2131,17 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
     endmacro ()
     add_test_GhsMulti("arm_integrity_simarm" "arm_integrity.tgt" "simarm")
     add_test_GhsMulti("arm64_integrity_simarm" "arm64_integrity.tgt" "simarm")
+    add_test(NAME GhsMulti.duplicate_source_filenames
+        COMMAND ${CMAKE_CTEST_COMMAND}
+        --build-and-test
+        "${CMake_SOURCE_DIR}/Tests/GhsMultiDuplicateSourceFilenames"
+        "${CMake_BINARY_DIR}/Tests/GhsMultiDuplicateSourceFilenames"
+        --build-generator "Green Hills MULTI"
+        --build-project ReturnNum
+        --build-config $<CONFIGURATION>
+        --build-options -DGHS_PRIMARY_TARGET="arm_integrity.tgt"
+        -DGHS_BSP_NAME="simarm"
+        )
   endif ()
 
   if(tegra AND NOT "${CMake_SOURCE_DIR};${CMake_BINARY_DIR}" MATCHES " ")
@@ -2676,6 +2723,15 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   ADD_TEST_MACRO(CMakeCommands.target_compile_definitions target_compile_definitions)
   ADD_TEST_MACRO(CMakeCommands.target_compile_options target_compile_options)
 
+  if(CMake_TEST_SERVER_MODE)
+    # The cmake server-mode test requires python for a simple client.
+    find_package(PythonInterp QUIET)
+    if(PYTHON_EXECUTABLE)
+      set(Server_BUILD_OPTIONS -DPYTHON_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE})
+      ADD_TEST_MACRO(Server Server)
+    endif()
+  endif()
+
   configure_file(
     "${CMake_SOURCE_DIR}/Tests/CTestTestCrash/test.cmake.in"
     "${CMake_BINARY_DIR}/Tests/CTestTestCrash/test.cmake"
@@ -3042,9 +3098,22 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
       --build-project testf
       --build-two-config
       --build-options ${build_options}
-        -DCMake_TEST_NESTED_MAKE_PROGRAM:FILEPATH=${CMake_TEST_EXPLICIT_MAKE_PROGRAM}
       --test-command testf)
     list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/Fortran")
+
+    if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
+      add_test(FortranModules ${CMAKE_CTEST_COMMAND}
+        --build-and-test
+        "${CMake_SOURCE_DIR}/Tests/FortranModules"
+        "${CMake_BINARY_DIR}/Tests/FortranModules"
+        ${build_generator_args}
+        --build-project FortranModules
+        --build-options ${build_options}
+          -DCMake_TEST_NESTED_MAKE_PROGRAM:FILEPATH=${CMake_TEST_EXPLICIT_MAKE_PROGRAM}
+          -DCMake_TEST_Fortran_SUBMODULES:BOOL=${CMake_TEST_Fortran_SUBMODULES}
+        )
+      list(APPEND TEST_BUILD_DIRS "${CMake_BINARY_DIR}/Tests/FortranModules")
+    endif()
 
     # FortranCInterface tests.
     if(UNIX)
@@ -3070,6 +3139,10 @@ ${CMake_BINARY_DIR}/bin/cmake -DDIR=dev -P ${CMake_SOURCE_DIR}/Utilities/Release
   find_package(Java COMPONENTS Development QUIET)
   if(Java_JAVA_EXECUTABLE AND Java_JAVAC_EXECUTABLE AND Java_JAR_EXECUTABLE AND NOT MINGW
       AND NOT "${CMAKE_GENERATOR}" MATCHES "Xcode")
+
+    set(JavaExportImport_BUILD_OPTIONS -DCMake_TEST_NESTED_MAKE_PROGRAM:FILEPATH=${CMake_TEST_EXPLICIT_MAKE_PROGRAM})
+    ADD_TEST_MACRO(JavaExportImport JavaExportImport)
+
     get_filename_component(JNIPATH ${JAVA_COMPILE} PATH)
     find_file(JNI_H jni.h
       "${JNIPATH}/../include"

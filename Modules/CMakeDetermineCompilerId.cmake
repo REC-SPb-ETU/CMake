@@ -1,16 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2007-2009 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # Function to compile a source file to identify the compiler.  This is
 # used internally by CMake and should not be included by user code.
@@ -149,15 +139,15 @@ Id flags: ${testflags}
 ")
 
   # Compile the compiler identification source.
-  if(CMAKE_GENERATOR STREQUAL "Visual Studio 6" AND
-      lang STREQUAL "Fortran")
-    set(CMAKE_${lang}_COMPILER_ID_RESULT 1)
-    set(CMAKE_${lang}_COMPILER_ID_OUTPUT "No Intel Fortran in VS 6")
-  elseif("${CMAKE_GENERATOR}" MATCHES "Visual Studio ([0-9]+)")
+  if("${CMAKE_GENERATOR}" MATCHES "Visual Studio ([0-9]+)")
     set(vs_version ${CMAKE_MATCH_1})
     set(id_platform ${CMAKE_VS_PLATFORM_NAME})
     set(id_lang "${lang}")
-    set(id_cl cl.exe)
+    if(CMAKE_VS_PLATFORM_TOOLSET MATCHES "v[0-9]+_clang_.*")
+      set(id_cl clang.exe)
+    else()
+      set(id_cl cl.exe)
+    endif()
     if(CMAKE_VS_PLATFORM_NAME STREQUAL "Tegra-Android")
       set(v NsightTegra)
       set(ext vcxproj)
@@ -175,13 +165,10 @@ Id flags: ${testflags}
     elseif(NOT "${vs_version}" VERSION_LESS 10)
       set(v 10)
       set(ext vcxproj)
-    elseif(NOT "${vs_version}" VERSION_LESS 7)
+    else()
       set(id_version ${vs_version}.00)
       set(v 7)
       set(ext vcproj)
-    else()
-      set(v 6)
-      set(ext dsp)
     endif()
     if(CMAKE_VS_PLATFORM_TOOLSET)
       if(CMAKE_VS_PLATFORM_NAME STREQUAL "Tegra-Android")
@@ -235,8 +222,6 @@ Id flags: ${testflags}
         )
     elseif(CMAKE_VS_DEVENV_COMMAND)
       set(command "${CMAKE_VS_DEVENV_COMMAND}" "CompilerId${lang}.${ext}" "/build" "Debug")
-    elseif(CMAKE_VS_MSDEV_COMMAND)
-      set(command "${CMAKE_VS_MSDEV_COMMAND}" "CompilerId${lang}.${ext}" "/make")
     else()
       set(command "")
     endif()
@@ -270,6 +255,11 @@ Id flags: ${testflags}
       set(id_toolset "GCC_VERSION = ${CMAKE_XCODE_PLATFORM_TOOLSET};")
     else()
       set(id_toolset "")
+    endif()
+    if("${lang}" STREQUAL "Swift")
+      set(id_lang_version "SWIFT_VERSION = 2.3;")
+    else()
+      set(id_lang_version "")
     endif()
     if(CMAKE_OSX_DEPLOYMENT_TARGET)
       set(id_deployment_target
@@ -370,14 +360,15 @@ ${CMAKE_${lang}_COMPILER_ID_OUTPUT}
 
     # Find the executable produced by the compiler, try all files in the
     # binary dir.
+    string(REGEX REPLACE "([][])" "[\\1]" _glob_id_dir "${CMAKE_${lang}_COMPILER_ID_DIR}")
     file(GLOB files
       RELATIVE ${CMAKE_${lang}_COMPILER_ID_DIR}
 
       # normal case
-      ${CMAKE_${lang}_COMPILER_ID_DIR}/*
+      ${_glob_id_dir}/*
 
       # com.apple.package-type.bundle.unit-test
-      ${CMAKE_${lang}_COMPILER_ID_DIR}/*.xctest/*
+      ${_glob_id_dir}/*.xctest/*
       )
     list(REMOVE_ITEM files "${src}")
     set(COMPILER_${lang}_PRODUCED_FILES "")
@@ -497,11 +488,11 @@ function(CMAKE_DETERMINE_COMPILER_ID_CHECK lang file)
     if(NOT DEFINED COMPILER_VERSION AND HAVE_COMPILER_VERSION_MAJOR)
       set(COMPILER_VERSION "${COMPILER_VERSION_MAJOR}")
       if(HAVE_COMPILER_VERSION_MINOR)
-        set(COMPILER_VERSION "${COMPILER_VERSION}.${COMPILER_VERSION_MINOR}")
+        string(APPEND COMPILER_VERSION ".${COMPILER_VERSION_MINOR}")
         if(HAVE_COMPILER_VERSION_PATCH)
-          set(COMPILER_VERSION "${COMPILER_VERSION}.${COMPILER_VERSION_PATCH}")
+          string(APPEND COMPILER_VERSION ".${COMPILER_VERSION_PATCH}")
           if(HAVE_COMPILER_VERSION_TWEAK)
-            set(COMPILER_VERSION "${COMPILER_VERSION}.${COMPILER_VERSION_TWEAK}")
+            string(APPEND COMPILER_VERSION ".${COMPILER_VERSION_TWEAK}")
           endif()
         endif()
       endif()
@@ -669,8 +660,8 @@ function(CMAKE_DETERMINE_MSVC_SHOWINCLUDES_PREFIX lang)
     ERROR_VARIABLE err
     RESULT_VARIABLE res
     )
-  if(res EQUAL 0 AND "${out}" MATCHES "\n([^:]*:[^:]*:[ \t]*)")
-    set(CMAKE_${lang}_CL_SHOWINCLUDES_PREFIX "${CMAKE_MATCH_1}" PARENT_SCOPE)
+  if(res EQUAL 0 AND "${out}" MATCHES "(^|\n)([^:\n]*:[^:\n]*:[ \t]*)")
+    set(CMAKE_${lang}_CL_SHOWINCLUDES_PREFIX "${CMAKE_MATCH_2}" PARENT_SCOPE)
   else()
     set(CMAKE_${lang}_CL_SHOWINCLUDES_PREFIX "" PARENT_SCOPE)
   endif()

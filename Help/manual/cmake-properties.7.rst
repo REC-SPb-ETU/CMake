@@ -24,6 +24,7 @@ Properties of Global Scope
    /prop_gbl/DISABLED_FEATURES
    /prop_gbl/ENABLED_FEATURES
    /prop_gbl/ENABLED_LANGUAGES
+   /prop_gbl/FIND_LIBRARY_USE_LIB32_PATHS
    /prop_gbl/FIND_LIBRARY_USE_LIB64_PATHS
    /prop_gbl/FIND_LIBRARY_USE_OPENBSD_VERSIONING
    /prop_gbl/GLOBAL_DEPENDS_DEBUG_MODE
@@ -53,6 +54,8 @@ Properties on Directories
    :maxdepth: 1
 
    /prop_dir/ADDITIONAL_MAKE_CLEAN_FILES
+   /prop_dir/BINARY_DIR
+   /prop_dir/BUILDSYSTEM_TARGETS
    /prop_dir/CACHE_VARIABLES
    /prop_dir/CLEAN_NO_CUSTOM
    /prop_dir/CMAKE_CONFIGURE_DEPENDS
@@ -72,10 +75,13 @@ Properties on Directories
    /prop_dir/RULE_LAUNCH_COMPILE
    /prop_dir/RULE_LAUNCH_CUSTOM
    /prop_dir/RULE_LAUNCH_LINK
+   /prop_dir/SOURCE_DIR
+   /prop_dir/SUBDIRECTORIES
    /prop_dir/TEST_INCLUDE_FILE
    /prop_dir/VARIABLES
    /prop_dir/VS_GLOBAL_SECTION_POST_section
    /prop_dir/VS_GLOBAL_SECTION_PRE_section
+   /prop_dir/VS_STARTUP_PROJECT
 
 .. _`Target Properties`:
 
@@ -115,6 +121,7 @@ Properties on Targets
    /prop_tgt/AUTORCC
    /prop_tgt/AUTORCC_OPTIONS
    /prop_tgt/BINARY_DIR
+   /prop_tgt/BUILD_RPATH
    /prop_tgt/BUILD_WITH_INSTALL_RPATH
    /prop_tgt/BUNDLE_EXTENSION
    /prop_tgt/BUNDLE
@@ -141,6 +148,7 @@ Properties on Targets
    /prop_tgt/CXX_STANDARD_REQUIRED
    /prop_tgt/DEBUG_POSTFIX
    /prop_tgt/DEFINE_SYMBOL
+   /prop_tgt/DEPLOYMENT_REMOTE_DIRECTORY
    /prop_tgt/EchoString
    /prop_tgt/ENABLE_EXPORTS
    /prop_tgt/EXCLUDE_FROM_ALL
@@ -195,6 +203,7 @@ Properties on Targets
    /prop_tgt/JOB_POOL_COMPILE
    /prop_tgt/JOB_POOL_LINK
    /prop_tgt/LABELS
+   /prop_tgt/LANG_CLANG_TIDY
    /prop_tgt/LANG_COMPILER_LAUNCHER
    /prop_tgt/LANG_INCLUDE_WHAT_YOU_USE
    /prop_tgt/LANG_VISIBILITY_PRESET
@@ -214,6 +223,7 @@ Properties on Targets
    /prop_tgt/LINK_LIBRARIES
    /prop_tgt/LINK_SEARCH_END_STATIC
    /prop_tgt/LINK_SEARCH_START_STATIC
+   /prop_tgt/LINK_WHAT_YOU_USE
    /prop_tgt/LOCATION_CONFIG
    /prop_tgt/LOCATION
    /prop_tgt/MACOSX_BUNDLE_INFO_PLIST
@@ -255,6 +265,7 @@ Properties on Targets
    /prop_tgt/TYPE
    /prop_tgt/VERSION
    /prop_tgt/VISIBILITY_INLINES_HIDDEN
+   /prop_tgt/VS_CONFIGURATION_TYPE
    /prop_tgt/VS_DESKTOP_EXTENSIONS_VERSION
    /prop_tgt/VS_DOTNET_REFERENCES
    /prop_tgt/VS_DOTNET_TARGET_FRAMEWORK_VERSION
@@ -270,6 +281,7 @@ Properties on Targets
    /prop_tgt/VS_SCC_LOCALPATH
    /prop_tgt/VS_SCC_PROJECTNAME
    /prop_tgt/VS_SCC_PROVIDER
+   /prop_tgt/VS_SDK_REFERENCES
    /prop_tgt/VS_WINDOWS_TARGET_PLATFORM_MIN_VERSION
    /prop_tgt/VS_WINRT_COMPONENT
    /prop_tgt/VS_WINRT_EXTENSIONS
@@ -293,6 +305,9 @@ Properties on Tests
    /prop_test/DEPENDS
    /prop_test/ENVIRONMENT
    /prop_test/FAIL_REGULAR_EXPRESSION
+   /prop_test/FIXTURES_CLEANUP
+   /prop_test/FIXTURES_REQUIRED
+   /prop_test/FIXTURES_SETUP
    /prop_test/LABELS
    /prop_test/MEASUREMENT
    /prop_test/PASS_REGULAR_EXPRESSION
@@ -302,6 +317,7 @@ Properties on Tests
    /prop_test/RUN_SERIAL
    /prop_test/SKIP_RETURN_CODE
    /prop_test/TIMEOUT
+   /prop_test/TIMEOUT_AFTER_MATCH
    /prop_test/WILL_FAIL
    /prop_test/WORKING_DIRECTORY
 
@@ -336,9 +352,11 @@ Properties on Source Files
    /prop_sf/VS_SHADER_FLAGS
    /prop_sf/VS_SHADER_MODEL
    /prop_sf/VS_SHADER_TYPE
+   /prop_sf/VS_TOOL_OVERRIDE.rst
    /prop_sf/VS_XAML_TYPE
    /prop_sf/WRAP_EXCLUDE
    /prop_sf/XCODE_EXPLICIT_FILE_TYPE
+   /prop_sf/XCODE_FILE_ATTRIBUTES
    /prop_sf/XCODE_LAST_KNOWN_FILE_TYPE
 
 .. _`Cache Entry Properties`:

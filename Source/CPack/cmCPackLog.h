@@ -1,37 +1,23 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCPackLog_h
 #define cmCPackLog_h
 
+#include <cmConfigure.h>
+
 #include "cmObject.h"
+#include "cmTypeMacro.h"
 
-#define cmCPack_Log(ctSelf, logType, msg) \
-  do { \
-  std::ostringstream cmCPackLog_msg; \
-  cmCPackLog_msg << msg; \
-  (ctSelf)->Log(logType, __FILE__, __LINE__, cmCPackLog_msg.str().c_str());\
-  } while ( 0 )
+#include <ostream>
+#include <string.h>
+#include <string>
 
-#ifdef cerr
-#  undef cerr
-#endif
-#define cerr no_cerr_use_cmCPack_Log
-
-#ifdef cout
-#  undef cout
-#endif
-#define cout no_cout_use_cmCPack_Log
-
+#define cmCPack_Log(ctSelf, logType, msg)                                     \
+  do {                                                                        \
+    std::ostringstream cmCPackLog_msg;                                        \
+    cmCPackLog_msg << msg;                                                    \
+    (ctSelf)->Log(logType, __FILE__, __LINE__, cmCPackLog_msg.str().c_str()); \
+  } while (0)
 
 /** \class cmCPackLog
  * \brief A container for CPack generators
@@ -43,9 +29,10 @@ public:
   cmTypeMacro(cmCPackLog, cmObject);
 
   cmCPackLog();
-  ~cmCPackLog();
+  ~cmCPackLog() CM_OVERRIDE;
 
-  enum __log_tags {
+  enum __log_tags
+  {
     NOTAG = 0,
     LOG_OUTPUT = 0x1,
     LOG_VERBOSE = 0x2,
@@ -56,19 +43,19 @@ public:
 
   //! Various signatures for logging.
   void Log(const char* file, int line, const char* msg)
-    {
+  {
     this->Log(LOG_OUTPUT, file, line, msg);
-    }
+  }
   void Log(const char* file, int line, const char* msg, size_t length)
-    {
+  {
     this->Log(LOG_OUTPUT, file, line, msg, length);
-    }
+  }
   void Log(int tag, const char* file, int line, const char* msg)
-    {
+  {
     this->Log(tag, file, line, msg, strlen(msg));
-    }
+  }
   void Log(int tag, const char* file, int line, const char* msg,
-    size_t length);
+           size_t length);
 
   //! Set Verbose
   void VerboseOn() { this->SetVerbose(true); }
@@ -126,11 +113,11 @@ private:
   std::string WarningPrefix;
   std::string ErrorPrefix;
 
-  std::ostream *DefaultOutput;
-  std::ostream *DefaultError;
+  std::ostream* DefaultOutput;
+  std::ostream* DefaultError;
 
   std::string LogOutputFileName;
-  std::ostream *LogOutput;
+  std::ostream* LogOutput;
   // Do we need to cleanup log output stream
   bool LogOutputCleanup;
 };
@@ -139,13 +126,16 @@ class cmCPackLogWrite
 {
 public:
   cmCPackLogWrite(const char* data, size_t length)
-    : Data(data), Length(length) {}
+    : Data(data)
+    , Length(length)
+  {
+  }
 
   const char* Data;
   size_t Length;
 };
 
-inline std::ostream& operator<< (std::ostream& os, const cmCPackLogWrite& c)
+inline std::ostream& operator<<(std::ostream& os, const cmCPackLogWrite& c)
 {
   os.write(c.Data, c.Length);
   os.flush();

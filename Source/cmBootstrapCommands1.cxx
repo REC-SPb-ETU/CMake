@@ -1,19 +1,9 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 // This file is used to compile all the commands
 // that CMake knows about at compile time.
 // This is sort of a boot strapping approach since you would
 // like to have CMake to build CMake.
-#include "cmCommands.h"
 #include "cmAddCustomCommandCommand.cxx"
 #include "cmAddCustomTargetCommand.cxx"
 #include "cmAddDefinitionsCommand.cxx"
@@ -27,6 +17,7 @@
 #include "cmCMakeMinimumRequired.cxx"
 #include "cmCMakePolicyCommand.cxx"
 #include "cmCommandArgumentsHelper.cxx"
+#include "cmCommands.h"
 #include "cmConfigureFileCommand.cxx"
 #include "cmContinueCommand.cxx"
 #include "cmCoreTryCompile.cxx"
@@ -42,9 +33,9 @@
 #include "cmEndWhileCommand.cxx"
 #include "cmExecProgramCommand.cxx"
 #include "cmExecuteProcessCommand.cxx"
+#include "cmFileCommand.cxx"
 #include "cmFindBase.cxx"
 #include "cmFindCommon.cxx"
-#include "cmFileCommand.cxx"
 #include "cmFindFileCommand.cxx"
 #include "cmFindLibraryCommand.cxx"
 #include "cmFindPackageCommand.cxx"
@@ -52,9 +43,9 @@
 #include "cmFindProgramCommand.cxx"
 #include "cmForEachCommand.cxx"
 #include "cmFunctionCommand.cxx"
+#include "cmParseArgumentsCommand.cxx"
 #include "cmPathLabel.cxx"
 #include "cmSearchPath.cxx"
-#include "cmParseArgumentsCommand.cxx"
 
 void GetBootstrapCommands1(std::vector<cmCommand*>& commands)
 {

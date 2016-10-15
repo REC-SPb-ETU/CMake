@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindPNG
 # -------
@@ -42,20 +45,6 @@
 # Since PNG depends on the ZLib compression library, none of the above
 # will be defined unless ZLib can be found.
 
-#=============================================================================
-# Copyright 2002-2009 Kitware, Inc.
-# Copyright 2016 Raumfeld
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
-
 if(PNG_FIND_QUIETLY)
   set(_FIND_ZLIB_ARG QUIET)
 endif()
@@ -85,7 +74,7 @@ if(ZLIB_FOUND)
     list(APPEND PNG_NAMES_DEBUG png${v}d libpng${v}d)
   endforeach()
   unset(_PNG_VERSION_SUFFIXES)
-  # For compatiblity with versions prior to this multi-config search, honor
+  # For compatibility with versions prior to this multi-config search, honor
   # any PNG_LIBRARY that is already specified and skip the search.
   if(NOT PNG_LIBRARY)
     find_library(PNG_LIBRARY_RELEASE NAMES ${PNG_NAMES})
@@ -104,7 +93,7 @@ if(ZLIB_FOUND)
   if (PNG_LIBRARY AND PNG_PNG_INCLUDE_DIR)
       # png.h includes zlib.h. Sigh.
       set(PNG_INCLUDE_DIRS ${PNG_PNG_INCLUDE_DIR} ${ZLIB_INCLUDE_DIR} )
-      set(PNG_INCLUDE_DIR ${PNG_INCLUDE_DIRS} ) # for backward compatiblity
+      set(PNG_INCLUDE_DIR ${PNG_INCLUDE_DIRS} ) # for backward compatibility
       set(PNG_LIBRARIES ${PNG_LIBRARY} ${ZLIB_LIBRARY})
 
       if (CYGWIN)
@@ -126,19 +115,19 @@ if(ZLIB_FOUND)
             IMPORTED_LINK_INTERFACE_LANGUAGES "C"
             IMPORTED_LOCATION "${PNG_LIBRARY}")
         endif()
-        if(EXISTS "${PNG_LIBRARY_DEBUG}")
-          set_property(TARGET PNG::PNG APPEND PROPERTY
-            IMPORTED_CONFIGURATIONS DEBUG)
-          set_target_properties(PNG::PNG PROPERTIES
-            IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
-            IMPORTED_LOCATION_DEBUG "${PNG_LIBRARY_DEBUG}")
-        endif()
         if(EXISTS "${PNG_LIBRARY_RELEASE}")
           set_property(TARGET PNG::PNG APPEND PROPERTY
             IMPORTED_CONFIGURATIONS RELEASE)
           set_target_properties(PNG::PNG PROPERTIES
             IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
             IMPORTED_LOCATION_RELEASE "${PNG_LIBRARY_RELEASE}")
+        endif()
+        if(EXISTS "${PNG_LIBRARY_DEBUG}")
+          set_property(TARGET PNG::PNG APPEND PROPERTY
+            IMPORTED_CONFIGURATIONS DEBUG)
+          set_target_properties(PNG::PNG PROPERTIES
+            IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
+            IMPORTED_LOCATION_DEBUG "${PNG_LIBRARY_DEBUG}")
         endif()
       endif()
   endif ()

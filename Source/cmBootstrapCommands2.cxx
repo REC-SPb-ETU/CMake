@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 // This file is used to compile all the commands
 // that CMake knows about at compile time.
 // This is sort of a boot strapping approach since you would
@@ -22,14 +13,15 @@
 #include "cmGetPropertyCommand.cxx"
 #include "cmGetSourceFilePropertyCommand.cxx"
 #include "cmGetTargetPropertyCommand.cxx"
+#include "cmGetTestPropertyCommand.cxx"
 #include "cmHexFileConverter.cxx"
 #include "cmIfCommand.cxx"
 #include "cmIncludeCommand.cxx"
 #include "cmIncludeDirectoryCommand.cxx"
 #include "cmIncludeRegularExpressionCommand.cxx"
-#include "cmInstallFilesCommand.cxx"
-#include "cmInstallCommandArguments.cxx"
 #include "cmInstallCommand.cxx"
+#include "cmInstallCommandArguments.cxx"
+#include "cmInstallFilesCommand.cxx"
 #include "cmInstallTargetsCommand.cxx"
 #include "cmLinkDirectoriesCommand.cxx"
 #include "cmListCommand.cxx"
@@ -48,7 +40,6 @@
 #include "cmSetSourceFilesPropertiesCommand.cxx"
 #include "cmSetTargetPropertiesCommand.cxx"
 #include "cmSetTestsPropertiesCommand.cxx"
-#include "cmGetTestPropertyCommand.cxx"
 #include "cmSiteNameCommand.cxx"
 #include "cmStringCommand.cxx"
 #include "cmSubdirCommand.cxx"
